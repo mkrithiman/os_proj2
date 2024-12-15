@@ -10,76 +10,168 @@
 #include "threads/synch.h"
 #include <stdio.h>
 
-/* Handle system calls with one argument */
-void syscall_handle_one_arg(int syscall_code, struct intr_frame *f, int *arg) {
-    switch (syscall_code) {
-        case SYS_EXIT:
-            exit(arg[0]);
-            break;
-        case SYS_IPC_SEND:
-            verify_str((const void *)arg[0]);
-            ipc_send((const char *)arg[0]);
-            break;
-        case SYS_IPC_RECEIVE:
-            verify_buffer((void *)arg[0], (unsigned)arg[1]);
-            ipc_receive((char *)arg[0], (size_t)arg[1]);
-            break;
-        case SYS_EXEC:
-            verify_str((const void *)arg[0]);
-            arg[0] = conv_vaddr((const void *)arg[0]);
-            f->eax = exec((const char *)arg[0]);
-            break;
-        case SYS_WAIT:
-            f->eax = wait(arg[0]);
-            break;
-        case SYS_REMOVE:
-            verify_str((const void *)arg[0]);
-            arg[0] = conv_vaddr((const void *)arg[0]);
-            f->eax = remove((const char *)arg[0]);
-            break;
-        case SYS_OPEN:
-            verify_str((const void *)arg[0]);
-            arg[0] = conv_vaddr((const void *)arg[0]);
-            f->eax = open((const char *)arg[0]);
-            break;
-        case SYS_FILESIZE:
-            f->eax = filesize(arg[0]);
-            break;
-        case SYS_TELL:
-            f->eax = tell(arg[0]);
-            break;
-        case SYS_CLOSE:
-            close(arg[0]);
-            break;
-    }
+// /* Handle system calls with one argument */
+
+// void syscall_handle_one_arg(int syscall_code, struct intr_frame *f, int *arg) {
+//     switch (syscall_code) {
+//         case SYS_EXIT:
+//             exit(arg[0]);
+//             break;
+//         case SYS_IPC_SEND:
+//             verify_str((const void *)arg[0]);
+//             ipc_send((const char *)arg[0]);
+//             break;
+//         case SYS_IPC_RECEIVE:
+//             verify_buffer((void *)arg[0], (unsigned)arg[1]);
+//             ipc_receive((char *)arg[0], (size_t)arg[1]);
+//             break;
+//         case SYS_EXEC:
+//             verify_str((const void *)arg[0]);
+//             arg[0] = conv_vaddr((const void *)arg[0]);
+//             f->eax = exec((const char *)arg[0]);
+//             break;
+//         case SYS_WAIT:
+//             f->eax = wait(arg[0]);
+//             break;
+//         case SYS_REMOVE:
+//             verify_str((const void *)arg[0]);
+//             arg[0] = conv_vaddr((const void *)arg[0]);
+//             f->eax = remove((const char *)arg[0]);
+//             break;
+//         case SYS_OPEN:
+//             verify_str((const void *)arg[0]);
+//             arg[0] = conv_vaddr((const void *)arg[0]);
+//             f->eax = open((const char *)arg[0]);
+//             break;
+//         case SYS_FILESIZE:
+//             f->eax = filesize(arg[0]);
+//             break;
+//         case SYS_TELL:
+//             f->eax = tell(arg[0]);
+//             break;
+//         case SYS_CLOSE:
+//             close(arg[0]);
+//             break;
+//     }
+// }
+
+// /* Handle system calls with two arguments */
+// void syscall_handle_two_args(int syscall_code, struct intr_frame *f, int *arg) {
+//     switch (syscall_code) {
+//         case SYS_CREATE:
+//             verify_str((const void *)arg[0]);
+//             arg[0] = conv_vaddr((const void *)arg[0]);
+//             f->eax = create((const char *)arg[0], (unsigned)arg[1]);
+//             break;
+//         case SYS_SEEK:
+//             seek(arg[0], (unsigned)arg[1]);
+//             break;
+//     }
+// }
+
+// /* Handle system calls with three arguments */
+// void syscall_handle_three_args(int syscall_code, struct intr_frame *f, int *arg) {
+//     verify_buffer((void *)arg[1], (unsigned)arg[2]);
+//     arg[1] = conv_vaddr((const void *)arg[1]);
+//     switch (syscall_code) {
+//         case SYS_READ:
+//             f->eax = read(arg[0], (void *)arg[1], (unsigned)arg[2]);
+//             break;
+//         case SYS_WRITE:
+//             f->eax = write(arg[0], (const void *)arg[1], (unsigned)arg[2]);
+//             break;
+//     }
+// }
+
+
+void syscall_exit(struct intr_frame *f, int *arg) {
+    exit(arg[0]);
 }
 
-/* Handle system calls with two arguments */
-void syscall_handle_two_args(int syscall_code, struct intr_frame *f, int *arg) {
-    switch (syscall_code) {
-        case SYS_CREATE:
-            verify_str((const void *)arg[0]);
-            arg[0] = conv_vaddr((const void *)arg[0]);
-            f->eax = create((const char *)arg[0], (unsigned)arg[1]);
-            break;
-        case SYS_SEEK:
-            seek(arg[0], (unsigned)arg[1]);
-            break;
-    }
+void syscall_exec(struct intr_frame *f, int *arg) {
+    verify_str((const void *)arg[0]);
+    arg[0] = conv_vaddr((const void *)arg[0]);
+    f->eax = exec((const char *)arg[0]);
 }
 
-/* Handle system calls with three arguments */
-void syscall_handle_three_args(int syscall_code, struct intr_frame *f, int *arg) {
+void syscall_wait(struct intr_frame *f, int *arg) {
+    f->eax = wait(arg[0]);
+}
+
+void syscall_open(struct intr_frame *f, int *arg) {
+    verify_str((const void *)arg[0]);
+    arg[0] = conv_vaddr((const void *)arg[0]);
+    f->eax = open((const char *)arg[0]);
+}
+
+void syscall_filesize(struct intr_frame *f, int *arg) {
+    f->eax = filesize(arg[0]);
+}
+
+void syscall_tell(struct intr_frame *f, int *arg) {
+    f->eax = tell(arg[0]);
+}
+
+void syscall_close(struct intr_frame *f, int *arg) {
+    close(arg[0]);
+}
+
+void syscall_create(struct intr_frame *f, int *arg) {
+    verify_str((const void *)arg[0]);
+    arg[0] = conv_vaddr((const void *)arg[0]);
+    f->eax = create((const char *)arg[0], (unsigned)arg[1]);
+}
+
+void syscall_seek(struct intr_frame *f, int *arg) {
+    seek(arg[0], (unsigned)arg[1]);
+}
+
+void syscall_read(struct intr_frame *f, int *arg) {
     verify_buffer((void *)arg[1], (unsigned)arg[2]);
     arg[1] = conv_vaddr((const void *)arg[1]);
-    switch (syscall_code) {
-        case SYS_READ:
-            f->eax = read(arg[0], (void *)arg[1], (unsigned)arg[2]);
-            break;
-        case SYS_WRITE:
-            f->eax = write(arg[0], (const void *)arg[1], (unsigned)arg[2]);
-            break;
+    f->eax = read(arg[0], (void *)arg[1], (unsigned)arg[2]);
+}
+
+void syscall_write(struct intr_frame *f, int *arg) {
+    verify_buffer((void *)arg[1], (unsigned)arg[2]);
+    arg[1] = conv_vaddr((const void *)arg[1]);
+    f->eax = write(arg[0], (const void *)arg[1], (unsigned)arg[2]);
+}
+
+static const struct syscall_mapping syscall_map[] = {
+    {SYS_EXIT, syscall_exit},
+    {SYS_EXEC, syscall_exec},
+    {SYS_WAIT, syscall_wait},
+    {SYS_CREATE, syscall_create},
+    {SYS_OPEN, syscall_open},
+    {SYS_FILESIZE, syscall_filesize},
+    {SYS_TELL, syscall_tell},
+    {SYS_CLOSE, syscall_close},
+    {SYS_SEEK, syscall_seek},
+    {SYS_READ, syscall_read},
+    {SYS_WRITE, syscall_write},
+    // Add more syscalls as needed.
+};
+void call_syscall_handler(int syscall_code, struct intr_frame *f, int *arg) {
+    size_t num_syscalls = sizeof(syscall_map) / sizeof(syscall_map[0]);
+    for (size_t i = 0; i < num_syscalls; i++) {
+        if (syscall_map[i].syscall_code == syscall_code) {
+            syscall_map[i].handler(f, arg);
+            return;
+        }
     }
+    exit(ERROR);  // Exit if the syscall code is invalid.
+}
+static void syscall_handler(struct intr_frame *f) {
+    int arg[3];
+    int esp = (int)f->esp;
+    verify_ptr((const void *)esp);
+
+    int syscall_code = *(int *)esp;
+    int number_of_arg = number_of_args(syscall_code);
+
+    load_arg(f, arg, number_of_arg);
+    call_syscall_handler(syscall_code, f, arg);
 }
 
 
