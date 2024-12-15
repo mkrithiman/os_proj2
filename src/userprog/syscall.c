@@ -113,4 +113,3 @@ void verify_str (const void* str){
 	char* toCheck = *(char*)conv_vaddr(str);
 	for( toCheck; toCheck != 0; toCheck = *(char*)conv_vaddr(++str));
 }
-
