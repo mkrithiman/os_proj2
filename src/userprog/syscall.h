@@ -1,4 +1,3 @@
-//-----//
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
@@ -7,6 +6,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "userprog/process.h"
+
 
 /* Define pid_t explicitly as int to avoid undefined type errors */
 typedef int pid_t;
@@ -35,29 +35,29 @@ struct syscall_mapping {
 void syscall_init(void);
 
 /* Individual syscall functions */
-void halt(void);
-void exit(int status);
-int exec(const char *file);
-int wait(pid_t pid);
-bool create(const char *file, unsigned initial_size);
-bool remove(const char *file);
-int open(const char *file);
-int filesize(int fd);
-int read(int fd, void *buffer, unsigned size);
-int write(int fd, const void *buffer, unsigned size);
-void seek(int fd, unsigned position);
-unsigned tell(int fd);
-void close(int fd);
+void halt_system(void);                          // Replaces `halt`
+void terminate_process(int status_code);         // Replaces `exit`
+int execute_program(const char *cmd_line);       // Replaces `exec`
+int wait_for_program(pid_t process_id);          // Replaces `wait`
+bool create_file(const char *filename, unsigned initial_size); // Replaces `create`
+bool delete_file(const char *filename);          // Replaces `remove`
+int open_file(const char *filename);             // Replaces `open`
+int get_file_size(int fd);                       // Replaces `filesize`
+int read_from_file(int fd, void *buffer, unsigned size); // Replaces `read`
+int write_to_file(int fd, const void *buffer, unsigned size); // Replaces `write`
+void set_file_position(int fd, unsigned position); // Replaces `seek`
+unsigned get_file_position(int fd);              // Replaces `tell`
+void close_file(int fd);                         // Replaces `close`
 void call_syscall_handler(int syscall_code, struct intr_frame *f, int *arg);
 
 /* IPC syscall functions */
-void ipc_send(const char *message);
-void ipc_receive(char *buffer, size_t size);
+void ipc_send_message(const char *message);      // Replaces `ipc_send`
+void ipc_receive_message(char *buffer, size_t size); // Replaces `ipc_receive`
 
 /* Helper functions (shared across syscall.c and syscall_handlers.c) */
-int conv_vaddr(const void *vaddr);
-void verify_ptr(const void *vaddr);
-void verify_buffer(void *buffer, unsigned size);
-void verify_str(const void *str);
+int convert_user_vaddr(const void *vaddr);       // Replaces `conv_vaddr`
+bool is_valid_pointer(const void *vaddr);        // Replaces `verify_ptr`
+void validate_buffer(void *buffer, unsigned size); // Replaces `verify_buffer`
+void validate_string(const void *str);           // Replaces `verify_str`
 
 #endif /* USERPROG_SYSCALL_H */

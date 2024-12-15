@@ -10,60 +10,60 @@
 #include "threads/synch.h"
 #include <stdio.h>
 
-/* Handle system calls with one argument */
+// /* Handle system calls with one argument */
 
 void syscall_exit(struct intr_frame *f, int *arg) {
-    exit(arg[0]);
+    terminate_process(arg[0]); // Renamed function
 }
 
 void syscall_exec(struct intr_frame *f, int *arg) {
-    verify_str((const void *)arg[0]);
-    arg[0] = conv_vaddr((const void *)arg[0]);
-    f->eax = exec((const char *)arg[0]);
+    validate_string((const void *)arg[0]); // Renamed from `verify_str`
+    arg[0] = convert_user_vaddr((const void *)arg[0]); // Renamed from `conv_vaddr`
+    f->eax = execute_program((const char *)arg[0]); // Renamed from `exec`
 }
 
 void syscall_wait(struct intr_frame *f, int *arg) {
-    f->eax = wait(arg[0]);
+    f->eax = wait_for_program(arg[0]); // Renamed from `wait`
 }
 
 void syscall_open(struct intr_frame *f, int *arg) {
-    verify_str((const void *)arg[0]);
-    arg[0] = conv_vaddr((const void *)arg[0]);
-    f->eax = open((const char *)arg[0]);
+    validate_string((const void *)arg[0]); // Renamed from `verify_str`
+    arg[0] = convert_user_vaddr((const void *)arg[0]); // Renamed from `conv_vaddr`
+    f->eax = open_file((const char *)arg[0]); // Renamed from `open`
 }
 
 void syscall_filesize(struct intr_frame *f, int *arg) {
-    f->eax = filesize(arg[0]);
+    f->eax = get_file_size(arg[0]); // Renamed from `filesize`
 }
 
 void syscall_tell(struct intr_frame *f, int *arg) {
-    f->eax = tell(arg[0]);
+    f->eax = get_file_position(arg[0]); // Renamed from `tell`
 }
 
 void syscall_close(struct intr_frame *f, int *arg) {
-    close(arg[0]);
+    close_file(arg[0]); // Renamed from `close`
 }
 
 void syscall_create(struct intr_frame *f, int *arg) {
-    verify_str((const void *)arg[0]);
-    arg[0] = conv_vaddr((const void *)arg[0]);
-    f->eax = create((const char *)arg[0], (unsigned)arg[1]);
+    validate_string((const void *)arg[0]); // Renamed from `verify_str`
+    arg[0] = convert_user_vaddr((const void *)arg[0]); // Renamed from `conv_vaddr`
+    f->eax = create_file((const char *)arg[0], (unsigned)arg[1]); // Renamed from `create`
 }
 
 void syscall_seek(struct intr_frame *f, int *arg) {
-    seek(arg[0], (unsigned)arg[1]);
+    set_file_position(arg[0], (unsigned)arg[1]); // Renamed from `seek`
 }
 
 void syscall_read(struct intr_frame *f, int *arg) {
-    verify_buffer((void *)arg[1], (unsigned)arg[2]);
-    arg[1] = conv_vaddr((const void *)arg[1]);
-    f->eax = read(arg[0], (void *)arg[1], (unsigned)arg[2]);
+    validate_buffer((void *)arg[1], (unsigned)arg[2]); // Renamed from `verify_buffer`
+    arg[1] = convert_user_vaddr((const void *)arg[1]); // Renamed from `conv_vaddr`
+    f->eax = read_from_file(arg[0], (void *)arg[1], (unsigned)arg[2]); // Renamed from `read`
 }
 
 void syscall_write(struct intr_frame *f, int *arg) {
-    verify_buffer((void *)arg[1], (unsigned)arg[2]);
-    arg[1] = conv_vaddr((const void *)arg[1]);
-    f->eax = write(arg[0], (const void *)arg[1], (unsigned)arg[2]);
+    validate_buffer((void *)arg[1], (unsigned)arg[2]); // Renamed from `verify_buffer`
+    arg[1] = convert_user_vaddr((const void *)arg[1]); // Renamed from `conv_vaddr`
+    f->eax = write_to_file(arg[0], (const void *)arg[1], (unsigned)arg[2]); // Renamed from `write`
 }
 
 static const struct syscall_mapping syscall_map[] = {
@@ -88,7 +88,7 @@ void call_syscall_handler(int syscall_code, struct intr_frame *f, int *arg) {
             return;
         }
     }
-    exit(ERROR);  // Exit if the syscall code is invalid.
+    terminate_process(ERROR);  // Exit if the syscall code is invalid.
 }
 static void syscall_handler(struct intr_frame *f) {
     int arg[3];
@@ -102,12 +102,14 @@ static void syscall_handler(struct intr_frame *f) {
     call_syscall_handler(syscall_code, f, arg);
 }
 
+
+// names changed
 #define ERROR -1
 #define STDIN  0
 #define STDOUT 1
 
 /* Helper functions */
-static struct file *get_file_with_lock(int fd, struct thread *cur_thread) {
+static struct file *fetch_file_with_lock(int fd, struct thread *cur_thread) {
     struct file *file_ptr = process_get_file(fd, cur_thread);
     if (file_ptr != NULL) {
         lock_acquire(&filesys_lock);
@@ -115,11 +117,11 @@ static struct file *get_file_with_lock(int fd, struct thread *cur_thread) {
     return file_ptr;
 }
 
-static void release_file_lock() {
+static void unlock_file_lock() {
     lock_release(&filesys_lock);
 }
 
-static int handle_file_operation(struct file *file_ptr, int (*operation)(struct file *, const void *, unsigned),
+static int perform_file_operation(struct file *file_ptr, int (*operation)(struct file *, const void *, unsigned),
                                  const void *buffer, unsigned size) {
     if (file_ptr == NULL) return ERROR;
     lock_acquire(&filesys_lock);
@@ -128,7 +130,7 @@ static int handle_file_operation(struct file *file_ptr, int (*operation)(struct 
     return result;
 }
 
-static bool perform_file_action(struct file *file_ptr, void (*action)(struct file *)) {
+static bool execute_file_action(struct file *file_ptr, void (*action)(struct file *)) {
     if (file_ptr == NULL) return false;
     lock_acquire(&filesys_lock);
     action(file_ptr);
@@ -137,11 +139,11 @@ static bool perform_file_action(struct file *file_ptr, void (*action)(struct fil
 }
 
 /* Refactored system call functions */
-void halt(void) {
+void halt_system(void) {
     shutdown_power_off();
 }
 
-void exit(int status_code) {
+void terminate_process(int status_code) {
     struct thread *current_thread = thread_current();
     if (current_thread->cp) {
         current_thread->cp->status = status_code;
@@ -150,7 +152,7 @@ void exit(int status_code) {
     thread_exit();
 }
 
-int exec(const char *cmd_line) {
+int execute_program(const char *cmd_line) {
     int process_id = process_execute(cmd_line);
     struct child_process *child_proc = get_child_process(process_id, thread_current());
     if (child_proc != NULL) {
@@ -167,25 +169,25 @@ int exec(const char *cmd_line) {
     return process_id;
 }
 
-int wait(pid_t process_id) {
+int wait_for_program(pid_t process_id) {
     return process_wait(process_id);
 }
 
-bool create(const char *filename, unsigned initial_size) {
+bool create_file(const char *filename, unsigned initial_size) {
     lock_acquire(&filesys_lock);
     bool success = filesys_create(filename, initial_size);
     lock_release(&filesys_lock);
     return success;
 }
 
-bool remove(const char *filename) {
+bool delete_file(const char *filename) {
     lock_acquire(&filesys_lock);
     bool success = filesys_remove(filename);
     lock_release(&filesys_lock);
     return success;
 }
 
-int open(const char *filename) {
+int open_file(const char *filename) {
     lock_acquire(&filesys_lock);
     struct file *file_ptr = filesys_open(filename);
     int result = (file_ptr != NULL) ? process_add_file(file_ptr, thread_current()) : ERROR;
@@ -193,17 +195,17 @@ int open(const char *filename) {
     return result;
 }
 
-int filesize(int fd) {
+int get_file_size(int fd) {
     struct thread *current_thread = thread_current();
-    struct file *file_ptr = get_file_with_lock(fd, current_thread);
+    struct file *file_ptr = fetch_file_with_lock(fd, current_thread);
     if (file_ptr == NULL) return ERROR;
 
     int length = file_length(file_ptr);
-    release_file_lock();
+    unlock_file_lock();
     return length;
 }
 
-int read(int fd, void *buffer, unsigned size) {
+int read_from_file(int fd, void *buffer, unsigned size) {
     struct thread *current_thread = thread_current();
     if (fd == STDIN) {
         uint8_t *temp_buffer = (uint8_t *)buffer;
@@ -213,56 +215,56 @@ int read(int fd, void *buffer, unsigned size) {
         return size;
     }
 
-    struct file *file_ptr = get_file_with_lock(fd, current_thread);
+    struct file *file_ptr = fetch_file_with_lock(fd, current_thread);
     if (file_ptr == NULL) return ERROR;
 
     int bytes_read = file_read(file_ptr, buffer, size);
-    release_file_lock();
+    unlock_file_lock();
     return bytes_read;
 }
 
-int write(int fd, const void *buffer, unsigned size) {
+int write_to_file(int fd, const void *buffer, unsigned size) {
     struct thread *current_thread = thread_current();
     if (fd == STDOUT) {
         putbuf(buffer, size);
         return size;
     }
 
-    struct file *file_ptr = get_file_with_lock(fd, current_thread);
+    struct file *file_ptr = fetch_file_with_lock(fd, current_thread);
     if (file_ptr == NULL) return ERROR;
 
     int bytes_written = file_write(file_ptr, buffer, size);
-    release_file_lock();
+    unlock_file_lock();
     return bytes_written;
 }
 
-void seek(int fd, unsigned position) {
+void set_file_position(int fd, unsigned position) {
     struct thread *current_thread = thread_current();
-    struct file *file_ptr = get_file_with_lock(fd, current_thread);
+    struct file *file_ptr = fetch_file_with_lock(fd, current_thread);
     if (file_ptr != NULL) {
         file_seek(file_ptr, position);
-        release_file_lock();
+        unlock_file_lock();
     }
 }
 
-unsigned tell(int fd) {
+unsigned get_file_position(int fd) {
     struct thread *current_thread = thread_current();
-    struct file *file_ptr = get_file_with_lock(fd, current_thread);
+    struct file *file_ptr = fetch_file_with_lock(fd, current_thread);
     if (file_ptr == NULL) return ERROR;
 
     unsigned position = file_tell(file_ptr);
-    release_file_lock();
+    unlock_file_lock();
     return position;
 }
 
-void close(int fd) {
+void close_file(int fd) {
     struct thread *current_thread = thread_current();
     lock_acquire(&filesys_lock);
     process_close_file(fd, current_thread);
     lock_release(&filesys_lock);
 }
 
-void ipc_send(const char *message) {
+void ipc_send_message(const char *message) {
     sema_down(&shared_ipc_buffer.sema);
     size_t i = 0;
     while (i < IPC_BUFFER_SIZE - 1 && message[i] != '\0') {
@@ -273,7 +275,7 @@ void ipc_send(const char *message) {
     sema_up(&shared_ipc_buffer.sema);
 }
 
-void ipc_receive(char *buffer, size_t size) {
+void ipc_receive_message(char *buffer, size_t size) {
     sema_down(&shared_ipc_buffer.sema);
     size_t i = 0;
     while (i < size - 1 && shared_ipc_buffer.data[i] != '\0') {

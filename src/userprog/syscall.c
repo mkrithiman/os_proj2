@@ -8,6 +8,8 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
+
 
 /* Exit status constants */
 const int CLOSE_ALL = -1;
@@ -21,8 +23,8 @@ struct lock filesys_lock;
 
 /* Function prototypes */
 static void syscall_handler(struct intr_frame *f);
-static void load_arg(struct intr_frame *f, int *arg, int n);
-static int number_of_args(int syscall_code);
+static void load_syscall_args(struct intr_frame *f, int *arg, int n);
+static int num_syscall_args(int syscall_code);
 
 /* Syscall initialization */
 void syscall_init(void) {
@@ -33,30 +35,36 @@ void syscall_init(void) {
 /* Main syscall handler */
 static void syscall_handler(struct intr_frame *f) {
     int arg[3];
-    int esp = (int)f->esp;
+    int *esp = (int *)f->esp;
 
     /* Verify the stack pointer */
-    verify_ptr((const void *)esp);
+    if (!is_valid_pointer((void *)esp)) {
+        terminate_process(ERROR); // Updated function name
+    }
 
-    int syscall_code = *(int *)esp;
-    int number_of_arg = number_of_args(syscall_code);
+    int syscall_code = *esp;
+    int arg_count = num_syscall_args(syscall_code);
 
-    /* Load arguments from the stack */
-    load_arg(f, arg, number_of_arg);
+    /* Load syscall arguments from the stack */
+    load_syscall_args(f, arg, arg_count);
 
     /* Dispatch the syscall using the handler mapping in syscall_handlers.c */
     call_syscall_handler(syscall_code, f, arg);
 }
 
-/* Load arguments from the stack */
-static void load_arg(struct intr_frame *f, int *arg, int n) {
+/* Load syscall arguments from the stack */
+static void load_syscall_args(struct intr_frame *f, int *arg, int n) {
     for (int i = 0; i < n; i++) {
-        arg[i] = *((int *)f->esp + i + 1);
+        int *esp = (int *)f->esp + i + 1;
+        if (!is_valid_pointer((void *)esp)) {
+            terminate_process(ERROR); // Updated function name
+        }
+        arg[i] = *esp;
     }
 }
 
 /* Determine the number of arguments for a syscall */
-static int number_of_args(int syscall_code) {
+static int num_syscall_args(int syscall_code) {
     switch (syscall_code) {
         case SYS_HALT:
         case SYS_EXIT:
@@ -79,37 +87,39 @@ static int number_of_args(int syscall_code) {
     }
 }
 
-
 /* Convert user virtual address to kernel virtual address */
-int conv_vaddr(const void *vaddr) {
-    verify_ptr(vaddr);
+int convert_user_vaddr(const void *vaddr) {
+    if (!is_valid_pointer(vaddr)) {
+        terminate_process(ERROR); // Updated function name
+    }
+
     void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-    if (ptr != NULL) {
-        return (int)(uintptr_t)ptr; /* Use uintptr_t for pointer-to-int conversion */
-    } else {
-        exit(ERROR);
+    if (ptr == NULL) {
+        terminate_process(ERROR); // Updated function name
+    }
+    return (int)(uintptr_t)ptr; // Safely cast pointer to int
+}
+
+/* Validate a user-provided pointer */
+bool is_valid_pointer(const void *vaddr) {
+    return (vaddr != NULL &&
+            is_user_vaddr(vaddr) &&
+            pagedir_get_page(thread_current()->pagedir, vaddr) != NULL);
+}
+
+/* Validate a user-provided buffer */
+void validate_buffer(void *buffer, unsigned size) {
+    char *buf = (char *)buffer;
+    for (unsigned i = 0; i < size; i++) {
+        if (!is_valid_pointer((const void *)&buf[i])) {
+            terminate_process(ERROR); // Updated function name
+        }
     }
 }
 
-/* check the validity of given address */
-void verify_ptr (const void *vaddr){
-	if ( vaddr < (void *)0x08048000 || vaddr >= PHYS_BASE ){
-		exit(ERROR);
-	}
-}
-
-/* check the validity of given buffer with specific size */
-void verify_buffer (void* buffer, unsigned size){
-	unsigned i = 0;
-	char* temp = (char *) buffer;
-	while( i < size ){
-		verify_ptr((const void*) temp++);
-		i++;
-	}
-}
-
-/* check the validity of the given string */
-void verify_str (const void* str){
-	char* toCheck = *(char*)conv_vaddr(str);
-	for( toCheck; toCheck != 0; toCheck = *(char*)conv_vaddr(++str));
+/* Validate a user-provided string */
+void validate_string(const void *str) {
+    for (const char *s = (const char *)str; is_valid_pointer(s) && *s != '\0'; s++) {
+        // No action needed, just validate each byte
+    }
 }
