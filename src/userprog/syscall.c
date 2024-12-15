@@ -34,29 +34,18 @@ void syscall_init(void) {
 static void syscall_handler(struct intr_frame *f) {
     int arg[3];
     int esp = (int)f->esp;
+
+    /* Verify the stack pointer */
+    verify_ptr((const void *)esp);
+
     int syscall_code = *(int *)esp;
     int number_of_arg = number_of_args(syscall_code);
 
-    switch (number_of_arg) {
-        case 1:
-            load_arg(f, &arg[0], number_of_arg);
-            syscall_handle_one_arg(syscall_code, f, arg);
-            break;
+    /* Load arguments from the stack */
+    load_arg(f, arg, number_of_arg);
 
-        case 2:
-            load_arg(f, &arg[0], number_of_arg);
-            syscall_handle_two_args(syscall_code, f, arg);
-            break;
-
-        case 3:
-            load_arg(f, &arg[0], number_of_arg);
-            syscall_handle_three_args(syscall_code, f, arg);
-            break;
-
-        default:
-            halt();
-            break;
-    }
+    /* Dispatch the syscall using the handler mapping in syscall_handlers.c */
+    call_syscall_handler(syscall_code, f, arg);
 }
 
 /* Load arguments from the stack */
@@ -89,6 +78,7 @@ static int number_of_args(int syscall_code) {
             return 0;
     }
 }
+
 
 /* Convert user virtual address to kernel virtual address */
 int conv_vaddr(const void *vaddr) {
@@ -123,4 +113,3 @@ void verify_str (const void* str){
 	char* toCheck = *(char*)conv_vaddr(str);
 	for( toCheck; toCheck != 0; toCheck = *(char*)conv_vaddr(++str));
 }
-

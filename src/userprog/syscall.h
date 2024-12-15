@@ -1,3 +1,4 @@
+//-----//
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
@@ -17,20 +18,21 @@ typedef int pid_t;
 /* Filesystem lock (shared across files) */
 extern struct lock filesys_lock;
 
-/* Constants for syscall handling */
-extern const int CLOSE_ALL;
-extern const int ERROR;
-extern const int NOT_LOADED;
-extern const int LOAD_SUCCESS;
-extern const int LOAD_FAIL;
+/* Common constants for syscall handling */
+extern const int CLOSE_ALL;    /* Special file descriptor to close all files */
+extern const int ERROR;        /* Error status for invalid syscalls or failures */
+extern const int NOT_LOADED;   /* Indicates a process has not loaded */
+extern const int LOAD_SUCCESS; /* Indicates a process loaded successfully */
+extern const int LOAD_FAIL;    /* Indicates a process failed to load */
+
+/* Struct for mapping syscalls to their handlers */
+struct syscall_mapping {
+    int syscall_code; /* The syscall code (e.g., SYS_EXIT) */
+    void (*handler)(struct intr_frame *f, int *arg); /* Corresponding handler function */
+};
 
 /* Syscall initialization */
 void syscall_init(void);
-
-/* Syscall handlers (defined in syscall_handlers.c) */
-void syscall_handle_one_arg(int syscall_code, struct intr_frame *f, int *arg);
-void syscall_handle_two_args(int syscall_code, struct intr_frame *f, int *arg);
-void syscall_handle_three_args(int syscall_code, struct intr_frame *f, int *arg);
 
 /* Individual syscall functions */
 void halt(void);
@@ -46,6 +48,7 @@ int write(int fd, const void *buffer, unsigned size);
 void seek(int fd, unsigned position);
 unsigned tell(int fd);
 void close(int fd);
+void call_syscall_handler(int syscall_code, struct intr_frame *f, int *arg);
 
 /* IPC syscall functions */
 void ipc_send(const char *message);
