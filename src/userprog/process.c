@@ -585,7 +585,8 @@ install_page (void *upage, void *kpage, bool writable)
 }
 
 /* Add the given file to the current process and return its file descriptor. */
-int process_add_file(struct file *f, struct thread *t) 
+int
+process_add_file(struct file *f, struct thread *t) 
 {
     struct process_file *pf = malloc(sizeof(struct process_file));
 
@@ -600,7 +601,8 @@ int process_add_file(struct file *f, struct thread *t)
 }
 
 /* Return the file associated with the given file descriptor. */
-struct file *process_get_file(int fd, struct thread *t) 
+struct file
+*process_get_file(int fd, struct thread *t) 
 {
     for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)) {
         struct process_file *pf = list_entry(e, struct process_file, elem);
@@ -612,7 +614,8 @@ struct file *process_get_file(int fd, struct thread *t)
 
 /* Close the file associated with the given file descriptor.
    If `fd` is CLOSE_ALL, close all open files. */
-void process_close_file(int fd, struct thread *t) 
+void
+process_close_file(int fd, struct thread *t) 
 {
     for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); ) {
         struct process_file *pf = list_entry(e, struct process_file, elem);
@@ -630,7 +633,8 @@ void process_close_file(int fd, struct thread *t)
 }
 
 /* Add a new child process with the given PID to the parent thread. */
-void add_child_process(int pid, struct thread *t) 
+void
+add_child_process(int pid, struct thread *t) 
 {
     struct child_process *cp = malloc(sizeof(struct child_process));
 
@@ -646,7 +650,8 @@ void add_child_process(int pid, struct thread *t)
 }
 
 /* Retrieve the child process structure corresponding to the given PID. */
-struct child_process *get_child_process(int pid, struct thread *t) 
+struct child_process
+*get_child_process(int pid, struct thread *t) 
 {
     for (struct list_elem *e = list_begin(&t->child_list); e != list_end(&t->child_list); e = list_next(e)) {
         struct child_process *cp = list_entry(e, struct child_process, elem);
@@ -657,14 +662,16 @@ struct child_process *get_child_process(int pid, struct thread *t)
 }
 
 /* Remove the specified child process from the list and free its memory. */
-void remove_child_process(struct child_process *cp) 
+void
+remove_child_process(struct child_process *cp) 
 {
     list_remove(&cp->elem);
     free(cp);
 }
 
 /* Remove all child processes associated with the given thread. */
-void remove_all_children(struct thread *t) 
+void
+remove_all_children(struct thread *t) 
 {
     while (!list_empty(&t->child_list)) {
         struct child_process *cp = list_entry(list_pop_front(&t->child_list), struct child_process, elem);
@@ -673,7 +680,8 @@ void remove_all_children(struct thread *t)
 }
 
 /* Push final arguments onto the stack in the correct order. */
-static void final_push(int order, void **esp, char *token, char **argv, int argc) 
+static void
+final_push(int order, void **esp, char *token, char **argv, int argc) 
 {
     switch (order) {
         case 1:
