@@ -180,8 +180,8 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-/* added for projects 2 */
-void is_alive_func(struct thread *t, void *aux);
-void reset_flag(void);
+void is_thread_alive(struct thread *t, void *aux);
+bool thread_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+void flag_reset(void);
 
 #endif /* threads/thread.h */

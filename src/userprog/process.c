@@ -147,14 +147,14 @@ process_exit (void)
 	/* remove all child from child list and update state */
 	remove_children(thread_current());
 	enum intr_level old_level = intr_disable();
-	thread_foreach(is_alive_func, (void *) cur->parent);
+	thread_foreach(is_thread_alive, (void *) cur->parent);
 	if (thread_alive){
 		if (cur->cp && cur->executable){
 			cur->cp->exit = true;
 			sema_up(&cur->cp->exit_sema);
 		}
 	}
-	reset_flag();
+	flag_reset();
 	intr_set_level(old_level);
 
 	/* Destroy the current process's page directory and switch back

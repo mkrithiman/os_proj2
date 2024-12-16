@@ -104,7 +104,7 @@ thread_init (void)
 
 	/* Initialize the shared IPC buffer and semaphore. */
 	sema_init(&shared_ipc_buffer.sema, 1); /* Semaphore starts as available */
-	memset(shared_ipc_buffer.data, 0, IPC_BUFFER_SIZE); /* Clear buffer */
+	memset(shared_ipc_buffer.data, 0, IPC_BUFFER_SIZE);
 
 	/* Set up a thread structure for the running thread. */
 	initial_thread = running_thread ();
@@ -197,9 +197,6 @@ thread_create (const char *name, int priority,
 	init_thread (t, name, priority);
 	tid = t->tid = allocate_tid ();
 
-	/* Prepare thread for first run by initializing its stack.
-     Do this atomically so intermediate values for the 'stack' 
-     member cannot be observed. */
 	old_level = intr_disable ();
 
 	/* Stack frame for kernel_thread(). */
@@ -219,7 +216,7 @@ thread_create (const char *name, int priority,
 
 	intr_set_level (old_level);
 
-	/* Add child process to child list */
+	/* Add child process to list */
 	t->parent = thread_tid();
 	add_child_process(t->tid, thread_current());
 	t->cp = get_child_process(t->tid, thread_current());
@@ -263,7 +260,14 @@ thread_unblock (struct thread *t)
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+
+	/* Insert thread in the ready list based on priority (if MLFQS or priority scheduling is used). */
+    if (thread_mlfqs) {
+        list_insert_ordered(&ready_list, &t->elem, thread_priority_comparator, NULL);
+    } else {
+        list_push_back(&ready_list, &t->elem);
+    }
+
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -490,15 +494,13 @@ init_thread (struct thread *t, const char *name, int priority)
 	t->magic = THREAD_MAGIC;
 	list_push_back (&all_list, &t->allelem);
 
-	/* thread member initialization for porject 2 */
+	/* thread list member initialization */
 	t->executable = NULL;
 
 	list_init(&t->lock_list);
-
 	list_init(&t->file_list);
-	t->fd = 2;
-
 	list_init(&t->child_list);
+	t->fd = 2;
 	t->cp = NULL;
 	t->parent = -1;
 }
@@ -619,19 +621,21 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 
 /* current thread will call this function when it is about to exit */
-static void release_locks (struct thread * t){
+static void
+release_locks (struct thread * t){
 
 	struct list_elem *e;
 
-	for(e = list_begin(&t->lock_list); e != list_end (&t->lock_list); e = list_next(e)){
-		struct lock *lock = list_entry (e, struct lock, elem);
-		lock_release(lock);
-		list_remove(&lock->elem);
-	}
+	 while (!list_empty(&t->lock_list)) {
+        e = list_pop_front(&t->lock_list);
+        struct lock *lock = list_entry(e, struct lock, elem);
+        lock_release(lock);
+	 }
 }
 
 /* check if the thread of given pid is still alive */
-void is_alive_func(struct thread *t, void *aux){
+void
+is_thread_alive(struct thread *t, void *aux){
 
 	if(foreach_finished){
 		return;
@@ -641,8 +645,18 @@ void is_alive_func(struct thread *t, void *aux){
 	}
 }
 
-/* reset flags to default status */
-void reset_flag(void){
+/* Comparator for priority-based insertion into the ready list. */
+bool
+thread_priority_comparator(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+    const struct thread *t_a = list_entry(a, struct thread, elem);
+    const struct thread *t_b = list_entry(b, struct thread, elem);
+    return t_a->priority > t_b->priority;
+}
+
+/* reset flags to default status (false) */
+void
+flag_reset(void){
 	thread_alive = false;
 	foreach_finished = false;
 }
