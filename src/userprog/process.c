@@ -31,6 +31,8 @@ extern const int LOAD_FAIL;
 /* boolean flag from thread.c */
 extern bool thread_alive;
 
+#define MAX_FD 128  // Maximum number of file descriptors per process
+
 /* Used for setup_stack */
 static void final_stack_push(int order, void **esp, char *token, char **argv, int argc);
 
@@ -594,20 +596,33 @@ current_process_add_file(struct file *f, struct thread *t)
         return ERROR;
 
     pf->file = f;
-    pf->fd = t->fd++;  // Increment file descriptor counter.
+
+	/* Ensuring file descriptors don't exceed a limit */
+    if (t->fd >= MAX_FD) {
+        free(pf);
+        return ERROR;
+    }
+
+    pf->fd = t->fd++;
     list_push_back(&t->file_list, &pf->elem);
 
     return pf->fd;
 }
 
 /* Return the file associated with the given file descriptor. */
-struct file
-*current_process_get_file(int fd, struct thread *t) 
+struct file *
+current_process_get_file(int fd, struct thread *t) 
 {
-    for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)) {
+    if (t == NULL || fd < 0) 
+        return NULL; // Return NULL if input is invalid.
+
+    struct list_elem *e = list_begin(&t->file_list);
+
+    while (e != list_end(&t->file_list)) {
         struct process_file *pf = list_entry(e, struct process_file, elem);
-        if (pf->fd == fd)
+        if (pf != NULL && pf->fd == fd)
             return pf->file;
+        e = list_next(e);
     }
     return NULL;
 }
@@ -617,18 +632,24 @@ struct file
 void
 current_process_close_file(int fd, struct thread *t) 
 {
-    for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); ) {
-        struct process_file *pf = list_entry(e, struct process_file, elem);
-        e = list_next(e);
+    if (t == NULL) 
+        return; // Do nothing if thread is NULL.
 
-        if (fd == pf->fd || fd == CLOSE_ALL) {
+    struct list_elem *e = list_begin(&t->file_list);
+
+    while (e != list_end(&t->file_list)) {
+        struct process_file *pf = list_entry(e, struct process_file, elem);
+        struct list_elem *next = list_next(e); // Store next element before potential removal.
+
+        if (pf != NULL && (fd == pf->fd || fd == CLOSE_ALL)) {
             file_close(pf->file);
             list_remove(&pf->elem);
             free(pf);
 
-            if (fd != CLOSE_ALL)
-                break;  // If not closing all files, stop after the match.
+            if (fd != CLOSE_ALL) 
+                break; // If not closing all files, stop after the match.
         }
+        e = next; // Move to the next element.
     }
 }
 
@@ -638,15 +659,17 @@ add_child_process(int pid, struct thread *t)
 {
     struct child_process *cp = malloc(sizeof(struct child_process));
 
-    if (cp) {
-        cp->pid = pid;
-        cp->load = NOT_LOADED;
-        cp->wait = false;
-        cp->exit = false;
-        sema_init(&cp->load_sema, 0);
-        sema_init(&cp->exit_sema, 0);
-        list_push_back(&t->child_list, &cp->elem);
+   if (!cp) {
+        return;
     }
+
+    cp->pid = pid;
+    cp->load = NOT_LOADED;
+    cp->wait = false;
+    cp->exit = false;
+    sema_init(&cp->load_sema, 0);
+    sema_init(&cp->exit_sema, 0);
+    list_push_back(&t->child_list, &cp->elem);
 }
 
 /* Retrieve the child process structure corresponding to the given PID. */
@@ -665,6 +688,9 @@ struct child_process
 void
 remove_child_process(struct child_process *cp) 
 {
+    if (cp == NULL) 
+        return; // Do nothing if child process is NULL.
+
     list_remove(&cp->elem);
     free(cp);
 }
@@ -673,9 +699,15 @@ remove_child_process(struct child_process *cp)
 void
 remove_children(struct thread *t) 
 {
+    if (t == NULL) 
+        return; // Do nothing if thread is NULL.
+
     while (!list_empty(&t->child_list)) {
-        struct child_process *cp = list_entry(list_pop_front(&t->child_list), struct child_process, elem);
-        free(cp);
+        struct list_elem *e = list_pop_front(&t->child_list);
+        struct child_process *cp = list_entry(e, struct child_process, elem);
+
+        if (cp != NULL)
+            free(cp);
     }
 }
 
@@ -683,24 +715,18 @@ remove_children(struct thread *t)
 static void
 final_stack_push(int order, void **esp, char *token, char **argv, int argc) 
 {
-    switch (order) {
-        case 1:
-            /* Push argv pointer onto the stack. */
-            token = *esp;
-            *esp -= sizeof(char **);
-            memcpy(*esp, &token, sizeof(char **));
-            break;
-
-        case 2:
-            /* Push argc onto the stack. */
-            *esp -= sizeof(int);
-            memcpy(*esp, &argc, sizeof(int));
-            break;
-
-        case 3:
-            /* Push a null return address onto the stack. */
-            *esp -= sizeof(void *);
-            memset(*esp, 0, sizeof(void *));
-            break;
+    if (order == 1) {
+        if (token != NULL) {
+            esp -= sizeof(char *);
+            memcpy(esp, &token, sizeof(char *));	// Push argv pointer onto the stack
+        }
+    } 
+    else if (order == 2) {
+        *esp -= sizeof(int);
+        memcpy(*esp, &argc, sizeof(int));	// Push argc onto the stack
+    } 
+    else if (order == 3) {
+        *esp -= sizeof(void *);
+        memset(*esp, 0, sizeof(void *));	// Push a null return address onto the stack
     }
 }
