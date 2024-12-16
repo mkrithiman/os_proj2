@@ -23,7 +23,6 @@ struct ipc_buffer shared_ipc_buffer;
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
-/* added for projects 2 */
 bool thread_alive = false;
 bool foreach_finished = false;
 
