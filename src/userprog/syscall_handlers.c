@@ -10,7 +10,7 @@
 #include "threads/synch.h"
 #include <stdio.h>
 
-// /* Handle system calls with one argument */
+/* Handle system calls with one argument */
 
 void syscall_exit(struct intr_frame *f, int *arg) {
     terminate_process(arg[0]); // Renamed function
@@ -263,6 +263,34 @@ void close_file(int fd) {
     process_close_file(fd, current_thread);
     lock_release(&filesys_lock);
 }
+int syscall_usage_count[20] = {0};
+
+static void track_syscall_usage(int syscall_code) {
+    if (syscall_code >= 0 && syscall_code < 20) {
+        syscall_usage_count[syscall_code]++;
+    }
+}
+
+void report_syscall_metrics(int *buffer, int size) {
+    if (size <= 0 || buffer == NULL) {
+        return;  // Handle invalid input
+    }
+
+    int count = size < SYSCALL_MAX ? size : SYSCALL_MAX; // Prevent overflow
+    for (int i = 0; i < count; i++) {
+        buffer[i] = syscall_usage_count[i];
+    }
+}
+void handle_syscall_error(void) {
+    terminate_process(ERROR);
+}
+bool is_valid_fd(int fd) {
+    return (fd >= 0 && fd < 128);  // Example range, adjust based on implementation
+}
+bool is_valid_pid(pid_t pid) {
+    return (pid > 0);  // A valid PID is typically positive
+}
+
 
 void ipc_send_message(const char *message) {
     sema_down(&shared_ipc_buffer.sema);

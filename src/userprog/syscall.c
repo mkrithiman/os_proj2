@@ -10,7 +10,6 @@
 #include "userprog/pagedir.h"
 #include "userprog/syscall.h"
 
-
 /* Exit status constants */
 const int CLOSE_ALL = -1;
 const int ERROR = -1;
@@ -21,10 +20,15 @@ const int LOAD_FAIL = 2;
 /* Filesystem lock */
 struct lock filesys_lock;
 
+/* Syscall usage metrics */
+static int syscall_usage[SYS_IPC_RECEIVE + 1] = {0}; // Tracks usage count of each syscall
+
 /* Function prototypes */
 static void syscall_handler(struct intr_frame *f);
 static void load_syscall_args(struct intr_frame *f, int *arg, int n);
 static int num_syscall_args(int syscall_code);
+static void log_syscall(const char *syscall_name, int *args, int arg_count, int result);
+static void track_syscall_usage(int syscall_code);
 
 /* Syscall initialization */
 void syscall_init(void) {
@@ -39,11 +43,14 @@ static void syscall_handler(struct intr_frame *f) {
 
     /* Verify the stack pointer */
     if (!is_valid_pointer((void *)esp)) {
-        terminate_process(ERROR); // Updated function name
+        terminate_process(ERROR);
     }
 
     int syscall_code = *esp;
     int arg_count = num_syscall_args(syscall_code);
+
+    /* Track syscall usage */
+    track_syscall_usage(syscall_code);
 
     /* Load syscall arguments from the stack */
     load_syscall_args(f, arg, arg_count);
@@ -57,7 +64,7 @@ static void load_syscall_args(struct intr_frame *f, int *arg, int n) {
     for (int i = 0; i < n; i++) {
         int *esp = (int *)f->esp + i + 1;
         if (!is_valid_pointer((void *)esp)) {
-            terminate_process(ERROR); // Updated function name
+            terminate_process(ERROR);
         }
         arg[i] = *esp;
     }
@@ -90,12 +97,12 @@ static int num_syscall_args(int syscall_code) {
 /* Convert user virtual address to kernel virtual address */
 int convert_user_vaddr(const void *vaddr) {
     if (!is_valid_pointer(vaddr)) {
-        terminate_process(ERROR); // Updated function name
+        terminate_process(ERROR);
     }
 
     void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
     if (ptr == NULL) {
-        terminate_process(ERROR); // Updated function name
+        terminate_process(ERROR);
     }
     return (int)(uintptr_t)ptr; // Safely cast pointer to int
 }
@@ -112,7 +119,7 @@ void validate_buffer(void *buffer, unsigned size) {
     char *buf = (char *)buffer;
     for (unsigned i = 0; i < size; i++) {
         if (!is_valid_pointer((const void *)&buf[i])) {
-            terminate_process(ERROR); // Updated function name
+            terminate_process(ERROR);
         }
     }
 }
@@ -123,3 +130,25 @@ void validate_string(const void *str) {
         // No action needed, just validate each byte
     }
 }
+
+/* Log syscall usage with arguments and result */
+static void log_syscall(const char *syscall_name, int *args, int arg_count, int result) {
+    printf("[SYSCALL] %s(", syscall_name);
+    for (int i = 0; i < arg_count; i++) {
+        printf("%d", args[i]);
+        if (i < arg_count - 1) {
+            printf(", ");
+        }
+    }
+    printf(") -> %d\n", result);
+}
+
+/* Track syscall usage metrics */
+static void track_syscall_usage(int syscall_code) {
+    if (syscall_code >= 0 && syscall_code <= SYS_IPC_RECEIVE) {
+        syscall_usage[syscall_code]++;
+    }
+}
+
+
+

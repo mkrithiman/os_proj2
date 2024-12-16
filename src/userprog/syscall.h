@@ -14,7 +14,7 @@ typedef int pid_t;
 /* Syscall codes for IPC */
 #define SYS_IPC_SEND 100    /* Code for sending IPC messages */
 #define SYS_IPC_RECEIVE 101 /* Code for receiving IPC messages */
-
+#define SYSCALL_MAX 20 // Maximum number of syscalls to track
 /* Filesystem lock (shared across files) */
 extern struct lock filesys_lock;
 
@@ -24,6 +24,7 @@ extern const int ERROR;        /* Error status for invalid syscalls or failures 
 extern const int NOT_LOADED;   /* Indicates a process has not loaded */
 extern const int LOAD_SUCCESS; /* Indicates a process loaded successfully */
 extern const int LOAD_FAIL;    /* Indicates a process failed to load */
+extern int syscall_usage_count[SYSCALL_MAX]; // Declare syscall usage tracking array
 
 /* Struct for mapping syscalls to their handlers */
 struct syscall_mapping {
@@ -50,6 +51,13 @@ unsigned get_file_position(int fd);              // Replaces `tell`
 void close_file(int fd);                         // Replaces `close`
 void call_syscall_handler(int syscall_code, struct intr_frame *f, int *arg);
 
+//void report_syscall_metrics(int *buffer, int size); // Report syscall usage metrics
+bool is_valid_fd(int fd);  // Validate file descriptor
+bool is_valid_pid(pid_t pid);  // Validate process ID
+void handle_syscall_error(void); // Centralized error handler
+void report_syscall_metrics(int *buffer, int size); // Declaration for reporting syscall usage
+
+
 /* IPC syscall functions */
 void ipc_send_message(const char *message);      // Replaces `ipc_send`
 void ipc_receive_message(char *buffer, size_t size); // Replaces `ipc_receive`
@@ -61,3 +69,4 @@ void validate_buffer(void *buffer, unsigned size); // Replaces `verify_buffer`
 void validate_string(const void *str);           // Replaces `verify_str`
 
 #endif /* USERPROG_SYSCALL_H */
+
