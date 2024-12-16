@@ -110,7 +110,7 @@ static void syscall_handler(struct intr_frame *f) {
 
 /* Helper functions */
 static struct file *fetch_file_with_lock(int fd, struct thread *cur_thread) {
-    struct file *file_ptr = process_get_file(fd, cur_thread);
+    struct file *file_ptr = current_process_get_file(fd, cur_thread);
     if (file_ptr != NULL) {
         lock_acquire(&filesys_lock);
     }
@@ -190,7 +190,7 @@ bool delete_file(const char *filename) {
 int open_file(const char *filename) {
     lock_acquire(&filesys_lock);
     struct file *file_ptr = filesys_open(filename);
-    int result = (file_ptr != NULL) ? process_add_file(file_ptr, thread_current()) : ERROR;
+    int result = (file_ptr != NULL) ?current_process_add_file(file_ptr, thread_current()) : ERROR;
     lock_release(&filesys_lock);
     return result;
 }
@@ -260,7 +260,7 @@ unsigned get_file_position(int fd) {
 void close_file(int fd) {
     struct thread *current_thread = thread_current();
     lock_acquire(&filesys_lock);
-    process_close_file(fd, current_thread);
+    current_process_close_file(fd, current_thread);
     lock_release(&filesys_lock);
 }
 

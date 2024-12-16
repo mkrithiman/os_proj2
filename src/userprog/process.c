@@ -32,7 +32,7 @@ extern const int LOAD_FAIL;
 extern bool thread_alive;
 
 /* Used for setup_stack */
-static void final_push(int order, void **esp, char *token, char **argv, int argc);
+static void final_stack_push(int order, void **esp, char *token, char **argv, int argc);
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp, char** save_ptr);	// added a save pointer arguement to load
@@ -138,14 +138,14 @@ process_exit (void)
 
 	/* closing all files which were opened by the process */
 	lock_acquire(&filesys_lock);
-	process_close_file(CLOSE_ALL, thread_current());
+	current_process_close_file(CLOSE_ALL, thread_current());
 	if (cur->executable){
 		file_close(cur->executable);
 	}
 	lock_release(&filesys_lock);
 
 	/* remove all child from child list and update state */
-	remove_all_children(thread_current());
+	remove_children(thread_current());
 	enum intr_level old_level = intr_disable();
 	thread_foreach(is_alive_func, (void *) cur->parent);
 	if (thread_alive){
@@ -586,7 +586,7 @@ install_page (void *upage, void *kpage, bool writable)
 
 /* Add the given file to the current process and return its file descriptor. */
 int
-process_add_file(struct file *f, struct thread *t) 
+current_process_add_file(struct file *f, struct thread *t) 
 {
     struct process_file *pf = malloc(sizeof(struct process_file));
 
@@ -602,7 +602,7 @@ process_add_file(struct file *f, struct thread *t)
 
 /* Return the file associated with the given file descriptor. */
 struct file
-*process_get_file(int fd, struct thread *t) 
+*current_process_get_file(int fd, struct thread *t) 
 {
     for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); e = list_next(e)) {
         struct process_file *pf = list_entry(e, struct process_file, elem);
@@ -615,7 +615,7 @@ struct file
 /* Close the file associated with the given file descriptor.
    If `fd` is CLOSE_ALL, close all open files. */
 void
-process_close_file(int fd, struct thread *t) 
+current_process_close_file(int fd, struct thread *t) 
 {
     for (struct list_elem *e = list_begin(&t->file_list); e != list_end(&t->file_list); ) {
         struct process_file *pf = list_entry(e, struct process_file, elem);
@@ -671,7 +671,7 @@ remove_child_process(struct child_process *cp)
 
 /* Remove all child processes associated with the given thread. */
 void
-remove_all_children(struct thread *t) 
+remove_children(struct thread *t) 
 {
     while (!list_empty(&t->child_list)) {
         struct child_process *cp = list_entry(list_pop_front(&t->child_list), struct child_process, elem);
@@ -681,7 +681,7 @@ remove_all_children(struct thread *t)
 
 /* Push final arguments onto the stack in the correct order. */
 static void
-final_push(int order, void **esp, char *token, char **argv, int argc) 
+final_stack_push(int order, void **esp, char *token, char **argv, int argc) 
 {
     switch (order) {
         case 1:
